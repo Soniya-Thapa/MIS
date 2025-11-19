@@ -1,0 +1,758 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Subject {
+  subject_id          Int                        @id @default(autoincrement())
+  subject_code        String                     @unique @db.VarChar(20)
+  subject_name        String                     @db.VarChar(100)
+  description         String?                    @db.Text
+  semester_id         Int
+  created_by          Int
+  created_at          DateTime                   @default(now())
+  updated_at          DateTime                   @updatedAt
+  image               String?
+  //Relations
+  chapter             chapter[]
+  resource            resource[]
+  studymaterial       studymaterial[]
+  creator             user                       @relation("SubjectCreator", fields: [created_by], references: [user_id])
+  semester            semester                   @relation(fields: [semester_id], references: [semester_id], onDelete: Cascade)
+  user_usersubjects   user[]                     @relation("usersubjects")
+  teacher_assignments TeacherSubjectAssignment[] @relation("SubjectTeacherAssignments")
+  exam_results        exam_result[]
+  backlogs            backlog[]
+
+  @@index([created_by], map: "subjects_created_by_fkey")
+  @@index([semester_id], map: "subjects_semester_id_fkey")
+  @@map("subjects")
+}
+
+model chapter {
+  chapter_id                    Int             @id @default(autoincrement())
+  subject_id                    Int
+  chapter_name                  String          @db.VarChar(100)
+  description                   String?         @db.Text
+  created_by                    Int
+  created_at                    DateTime        @default(now())
+  updated_at                    DateTime
+  chapter_number                Int
+  user_chapter_created_byTouser user            @relation("chapter_created_byTouser", fields: [created_by], references: [user_id], map: "Chapter_created_by_fkey")
+  subjects                      Subject         @relation(fields: [subject_id], references: [subject_id], onDelete: Cascade, map: "Chapter_subject_id_fkey")
+  studymaterial                 studymaterial[]
+  topic                         topic[]
+  user_userchapters             user[]          @relation("userchapters")
+
+  @@index([created_by], map: "Chapter_created_by_fkey")
+  @@index([subject_id], map: "Chapter_subject_id_fkey")
+}
+
+model course {
+  course_id   Int      @id @default(autoincrement())
+  course_code String   @unique(map: "Course_course_code_key") @db.VarChar(20)
+  course_name String   @db.VarChar(100)
+  college_id  Int?
+  description String?  @db.Text
+  created_by  Int
+  created_at  DateTime @default(now())
+  updated_at  DateTime @default(now())
+  image       String?
+
+  user           user            @relation(fields: [created_by], references: [user_id], map: "Course_created_by_fkey")
+  college        college?        @relation(fields: [college_id], references: [college_id], onDelete: Cascade, onUpdate: Cascade)
+  enrollment     enrollment[]
+  semesters      semester[]
+  fee_structures fee_structure[]
+  batches        batch[]
+
+  @@index([created_by], map: "Course_created_by_fkey")
+  @@index([college_id])
+}
+
+model enrollment {
+  enrollment_id    Int              @id @default(autoincrement())
+  student_id       Int              @unique(map: "Enrollment_student_id_key")
+  course_id        Int
+  batch_id         Int?
+  fee_structure_id Int
+  enrollment_date  DateTime         @default(now())
+  current_semester Int
+  status_id        Int              @default(1)
+  course           course           @relation(fields: [course_id], references: [course_id], map: "Enrollment_course_id_fkey")
+  enrollmentstatus enrollmentstatus @relation(fields: [status_id], references: [status_id], map: "Enrollment_status_id_fkey")
+  user             user             @relation(fields: [student_id], references: [user_id], map: "Enrollment_student_id_fkey")
+  batch            batch?           @relation(fields: [batchBatch_id], references: [batch_id])
+  batchBatch_id    Int?
+  fee_structure    fee_structure    @relation(fields: [fee_structure_id], references: [fee_structure_id])
+
+  @@unique([student_id, course_id], map: "Enrollment_student_id_course_id_key")
+  @@index([course_id], map: "Enrollment_course_id_fkey")
+  @@index([batch_id])
+  @@index([status_id], map: "Enrollment_status_id_fkey")
+  @@index([fee_structure_id])
+}
+
+model enrollmentstatus {
+  status_id   Int          @id @default(autoincrement())
+  name        String       @unique(map: "EnrollmentStatus_name_key") @db.VarChar(50)
+  description String?      @db.Text
+  created_at  DateTime     @default(now())
+  updated_at  DateTime?    @default(now())
+  enrollment  enrollment[]
+}
+
+model materialtype {
+  material_type_id Int                    @id @default(autoincrement())
+  type_name        materialtype_type_name @unique(map: "MaterialType_type_name_key")
+  description      String?                @db.Text
+  studymaterial    studymaterial[]
+}
+
+model resource {
+  resource_id                    Int      @id @default(autoincrement())
+  title                          String
+  description                    String
+  file_url                       String
+  semester                       Int
+  created_at                     DateTime @default(now())
+  updated_at                     DateTime
+  creator_id                     Int
+  subject_id                     Int
+  user_resource_creator_idTouser user     @relation("resource_creator_idTouser", fields: [creator_id], references: [user_id], map: "Resource_creator_id_fkey")
+  subjects                       Subject  @relation(fields: [subject_id], references: [subject_id], map: "Resource_subject_id_fkey")
+  user_resourcetouser            user[]   @relation("resourcetouser")
+
+  @@index([creator_id], map: "Resource_creator_id_fkey")
+  @@index([subject_id], map: "Resource_subject_id_fkey")
+}
+
+model role {
+  role_id Int    @id @default(autoincrement())
+  name    String @db.VarChar(50)
+  user    user[]
+}
+
+model semester {
+  semester_id     Int      @id @default(autoincrement())
+  course_id       Int
+  semester_number Int
+  created_at      DateTime @default(now())
+  updated_at      DateTime
+  semester_name   String   @db.VarChar(50)
+  user_id         Int
+
+  course        course          @relation(fields: [course_id], references: [course_id], onDelete: Cascade, map: "Semester_course_id_fkey")
+  user          user            @relation(fields: [user_id], references: [user_id], map: "Semester_user_id_fkey")
+  studymaterial studymaterial[]
+  subjects      Subject[]
+  exam_results  exam_result[]
+
+  fee_transactions fee_transaction[]
+  scholarships     scholarship[]
+  student_ranks    student_rank[]
+  failed_backlogs  backlog[]         @relation("FailedSemester")
+  cleared_backlogs backlog[]         @relation("ClearedSemester")
+
+  @@index([course_id], map: "Semester_course_id_fkey")
+  @@index([user_id], map: "Semester_user_id_fkey")
+}
+
+model studymaterial {
+  material_id      Int          @id @default(autoincrement())
+  topic_id         Int?
+  material_type_id Int
+  title            String
+  description      String
+  created_at       DateTime     @default(now())
+  updated_at       DateTime
+  file_url         String
+  chapter_id       Int?
+  file_size        Int
+  file_type        String
+  subject_id       Int
+  user_id          Int
+  semester_id      Int?
+  chapter          chapter?     @relation(fields: [chapter_id], references: [chapter_id], map: "StudyMaterial_chapter_id_fkey")
+  materialtype     materialtype @relation(fields: [material_type_id], references: [material_type_id], map: "StudyMaterial_material_type_id_fkey")
+  semester         semester?    @relation(fields: [semester_id], references: [semester_id], map: "StudyMaterial_semester_id_fkey")
+  subjects         Subject      @relation(fields: [subject_id], references: [subject_id], map: "StudyMaterial_subject_id_fkey")
+  topic            topic?       @relation(fields: [topic_id], references: [topic_id], map: "StudyMaterial_topic_id_fkey")
+  user             user         @relation(fields: [user_id], references: [user_id], map: "StudyMaterial_user_id_fkey")
+
+  @@index([chapter_id], map: "StudyMaterial_chapter_id_idx")
+  @@index([material_type_id], map: "StudyMaterial_material_type_id_idx")
+  @@index([semester_id], map: "StudyMaterial_semester_id_idx")
+  @@index([subject_id], map: "StudyMaterial_subject_id_idx")
+  @@index([topic_id], map: "StudyMaterial_topic_id_idx")
+  @@index([user_id], map: "StudyMaterial_user_id_idx")
+}
+
+model topic {
+  topic_id                    Int             @id @default(autoincrement())
+  chapter_id                  Int
+  topic_name                  String          @db.VarChar(100)
+  description                 String?         @db.Text
+  created_by                  Int
+  created_at                  DateTime        @default(now())
+  updated_at                  DateTime
+  topic_number                Int
+  studymaterial               studymaterial[]
+  chapter                     chapter         @relation(fields: [chapter_id], references: [chapter_id], onDelete: Cascade, map: "Topic_chapter_id_fkey")
+  user_topic_created_byTouser user            @relation("topic_created_byTouser", fields: [created_by], references: [user_id], map: "Topic_created_by_fkey")
+  user_usertopics             user[]          @relation("usertopics")
+
+  @@index([chapter_id], map: "Topic_chapter_id_fkey")
+  @@index([created_by], map: "Topic_created_by_fkey")
+}
+
+model user {
+  user_id                Int       @id @default(autoincrement())
+  username               String    @unique(map: "User_username_key") @db.VarChar(50)
+  email                  String    @unique(map: "User_email_key") @db.VarChar(100)
+  password               String?   @db.VarChar(255)
+  role_id                Int?
+  phone                  String?   @db.VarChar(20)
+  created_at             DateTime  @default(now())
+  updated_at             DateTime
+  image                  String?   @db.Text
+  verification_token     String?   @db.VarChar(255)
+  phone_verified         Boolean   @default(false)
+  blocked_until          DateTime?
+  failed_attempts        Int       @default(0)
+  is_blocked             Boolean   @default(false)
+  current_semester       Int?
+  full_name              String    @db.VarChar(50)
+  isTemporaryPassword    Boolean   @default(false)
+  password_reset_token   String?   @db.Text
+  password_reset_expires DateTime?
+  date_of_birth          DateTime?
+  father_name            String?   @db.VarChar(100)
+  gender                 Gender
+  created_by             Int?
+  contact_address        Int?
+  permanent_address      Int?
+
+  chapter_chapter_created_byTouser   chapter[]                  @relation("chapter_created_byTouser")
+  course                             course[]
+  enrollment                         enrollment?
+  resource_resource_creator_idTouser resource[]                 @relation("resource_creator_idTouser")
+  semester                           semester[]
+  studymaterial                      studymaterial[]
+  created_subjects                   Subject[]                  @relation("SubjectCreator")
+  topic_topic_created_byTouser       topic[]                    @relation("topic_created_byTouser")
+  role                               role?                      @relation(fields: [role_id], references: [role_id], map: "User_role_id_fkey")
+  contactArea                        areas?                     @relation("ContactAddress", fields: [contact_address], references: [id])
+  permanentArea                      areas?                     @relation("PermanentAddress", fields: [permanent_address], references: [id])
+  resource_resourcetouser            resource[]                 @relation("resourcetouser")
+  chapter_userchapters               chapter[]                  @relation("userchapters")
+  subjects_usersubjects              Subject[]                  @relation("usersubjects")
+  topic_usertopics                   topic[]                    @relation("usertopics")
+  teacher_assignments                TeacherSubjectAssignment[] @relation("TeacherAssignments")
+  admin_assignments                  TeacherSubjectAssignment[] @relation("AdminAssignments")
+  student_results                    exam_result[]              @relation("StudentResults")
+  uploaded_results                   exam_result[]              @relation("ResultUploader")
+
+  created_accounts       user[]            @relation("AccountCreator")
+  creator                user?             @relation("AccountCreator", fields: [created_by], references: [user_id])
+  created_fee_structures fee_structure[]   @relation("FeeStructureCreator")
+  created_fee_categories fee_category[]    @relation("FeeCategoryCreator")
+  fee_transactions       fee_transaction[] @relation("StudentTransactions")
+  recorded_transactions  fee_transaction[] @relation("TransactionRecorder")
+  scholarships           scholarship[]     @relation("StudentScholarships")
+  awarded_scholarships   scholarship[]     @relation("ScholarshipAwarder")
+  student_ranks          student_rank[]    @relation("StudentRanks")
+  backlogs               backlog[]         @relation("StudentBacklogs")
+
+  studentAcademicRecords    academic_record[]   @relation("StudentAcademicRecords")
+  uploadedAcademicDocuments academic_document[] @relation("AcademicDocumentUploader")
+  collegeUsers              college[]           @relation("CollegeUsers")
+
+  @@index([role_id], map: "User_role_id_fkey")
+  @@index([created_by])
+}
+
+model TeacherSubjectAssignment {
+  assignment_id Int      @id @default(autoincrement())
+  teacher_id    Int
+  subject_id    Int
+  assigned_by   Int
+  assigned_at   DateTime @default(now())
+  is_active     Boolean  @default(true)
+
+  // Relations
+  teacher user    @relation("TeacherAssignments", fields: [teacher_id], references: [user_id], onDelete: Cascade)
+  subject Subject @relation("SubjectTeacherAssignments", fields: [subject_id], references: [subject_id], onDelete: Cascade)
+  admin   user    @relation("AdminAssignments", fields: [assigned_by], references: [user_id])
+
+  @@unique([teacher_id, subject_id])
+  @@index([teacher_id])
+  @@index([subject_id])
+  @@index([assigned_by])
+  @@map("teacher_subject_assignments")
+}
+
+model batch {
+  batch_id   Int       @id @default(autoincrement())
+  course_id  Int
+  batch_year Int
+  batch_name String    @db.VarChar(50)
+  start_date DateTime
+  end_date   DateTime?
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  // Relations
+  course       course        @relation(fields: [course_id], references: [course_id], onDelete: Cascade)
+  enrollments  enrollment[]
+  exam_results exam_result[]
+
+  @@unique([course_id, batch_year])
+  @@index([course_id])
+  @@index([batch_year])
+  @@index([is_active])
+  @@map("batches")
+}
+
+model result_status {
+  status_id   Int      @id @default(autoincrement())
+  status_name String   @unique @db.VarChar(20)
+  description String?  @db.Text
+  created_at  DateTime @default(now())
+
+  // Relations
+  exam_results exam_result[]
+
+  @@map("result_statuses")
+}
+
+model exam_result {
+  result_id        Int       @id @default(autoincrement())
+  student_id       Int
+  subject_id       Int
+  semester_id      Int
+  batch_id         Int
+  academic_year    String    @db.VarChar(20)
+  exam_date        DateTime?
+  result_status_id Int
+  attempt_number   Int       @default(1)
+  is_latest        Boolean   @default(true)
+  remarks          String?   @db.Text
+  uploaded_by      Int
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  // Relations
+  student       user          @relation("StudentResults", fields: [student_id], references: [user_id], onDelete: Cascade)
+  subject       Subject       @relation(fields: [subject_id], references: [subject_id], onDelete: Cascade)
+  semester      semester      @relation(fields: [semester_id], references: [semester_id], onDelete: Cascade)
+  batch         batch         @relation(fields: [batch_id], references: [batch_id], onDelete: Cascade)
+  result_status result_status @relation(fields: [result_status_id], references: [status_id])
+  uploader      user          @relation("ResultUploader", fields: [uploaded_by], references: [user_id])
+
+  // Ensure one result per student-subject-semester-attempt combination
+  @@unique([student_id, subject_id, semester_id, attempt_number])
+  @@index([student_id])
+  @@index([subject_id])
+  @@index([semester_id])
+  @@index([batch_id])
+  @@index([result_status_id])
+  @@index([is_latest])
+  @@index([academic_year])
+  @@index([uploaded_by])
+  @@map("exam_results")
+}
+
+model fee_structure {
+  fee_structure_id Int      @id @default(autoincrement())
+  course_id        Int
+  batch_year       Int
+  total_amount     Decimal  @db.Decimal(10, 2)
+  duration_years   Int
+  total_semesters  Int
+  created_by       Int
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+  is_active        Boolean  @default(true)
+
+  course                   course                   @relation(fields: [course_id], references: [course_id])
+  creator                  user                     @relation("FeeStructureCreator", fields: [created_by], references: [user_id])
+  fee_structure_categories fee_structure_category[]
+  enrollments              enrollment[]
+
+  @@unique([course_id, batch_year])
+  @@index([course_id])
+  @@index([created_by])
+  @@map("fee_structures")
+}
+
+model fee_category {
+  category_id   Int      @id @default(autoincrement())
+  category_name String   @unique @db.VarChar(100)
+  description   String?  @db.Text
+  created_by    Int
+  created_at    DateTime @default(now())
+  is_active     Boolean  @default(true)
+
+  creator                  user                     @relation("FeeCategoryCreator", fields: [created_by], references: [user_id])
+  fee_structure_categories fee_structure_category[]
+
+  transactions fee_transaction_category[] // back-relation
+
+  @@index([created_by])
+  @@map("fee_categories")
+}
+
+model fee_structure_category {
+  id               Int     @id @default(autoincrement())
+  fee_structure_id Int
+  category_id      Int
+  amount           Decimal @db.Decimal(10, 2)
+  per_semester     Boolean @default(true)
+
+  fee_structure fee_structure @relation(fields: [fee_structure_id], references: [fee_structure_id], onDelete: Cascade)
+  category      fee_category  @relation(fields: [category_id], references: [category_id])
+
+  @@unique([fee_structure_id, category_id])
+  @@index([fee_structure_id])
+  @@index([category_id])
+  @@map("fee_structure_categories")
+}
+
+model fee_transaction {
+  transaction_id   Int      @id @default(autoincrement())
+  student_id       Int
+  semester_id      Int
+  amount_paid      Decimal  @db.Decimal(10, 2)
+  payment_date     DateTime
+  payment_method   String?  @db.VarChar(50)
+  reference_number String?  @db.VarChar(100)
+  remarks          String?  @db.Text
+  recorded_by      Int
+  created_at       DateTime @default(now())
+
+  student  user     @relation("StudentTransactions", fields: [student_id], references: [user_id])
+  semester semester @relation(fields: [semester_id], references: [semester_id])
+  recorder user     @relation("TransactionRecorder", fields: [recorded_by], references: [user_id])
+
+  categories fee_transaction_category[] // back-relation
+
+  @@index([student_id])
+  @@index([semester_id])
+  @@index([recorded_by])
+  @@map("fee_transactions")
+}
+
+model fee_transaction_category {
+  id             Int     @id @default(autoincrement())
+  transaction_id Int
+  category_id    Int
+  amount_paid    Decimal @db.Decimal(10, 2)
+
+  transaction fee_transaction @relation(fields: [transaction_id], references: [transaction_id], onDelete: Cascade)
+  category    fee_category    @relation(fields: [category_id], references: [category_id])
+
+  @@unique([transaction_id, category_id])
+  @@index([transaction_id])
+  @@index([category_id])
+}
+
+model scholarship {
+  scholarship_id   Int      @id @default(autoincrement())
+  student_id       Int
+  semester_id      Int
+  scholarship_type String   @db.VarChar(100)
+  percentage       Decimal  @db.Decimal(5, 2)
+  amount           Decimal  @db.Decimal(10, 2)
+  reason           String?  @db.Text
+  awarded_by       Int
+  awarded_date     DateTime @default(now())
+
+  student  user     @relation("StudentScholarships", fields: [student_id], references: [user_id])
+  semester semester @relation(fields: [semester_id], references: [semester_id])
+  awarder  user     @relation("ScholarshipAwarder", fields: [awarded_by], references: [user_id])
+
+  @@index([student_id])
+  @@index([semester_id])
+  @@index([awarded_by])
+  @@map("scholarships")
+}
+
+model student_rank {
+  rank_id       Int      @id @default(autoincrement())
+  student_id    Int
+  semester_id   Int
+  rank          Int
+  total_marks   Decimal? @db.Decimal(6, 2)
+  percentage    Decimal? @db.Decimal(5, 2)
+  calculated_at DateTime @default(now())
+
+  student  user     @relation("StudentRanks", fields: [student_id], references: [user_id])
+  semester semester @relation(fields: [semester_id], references: [semester_id])
+
+  @@unique([student_id, semester_id])
+  @@index([semester_id])
+  @@index([rank])
+  @@map("student_ranks")
+}
+
+model backlog {
+  backlog_id          Int       @id @default(autoincrement())
+  student_id          Int
+  subject_id          Int
+  failed_semester_id  Int
+  status              String    @default("pending") @db.VarChar(20) // pending, cleared
+  cleared_semester_id Int?
+  created_at          DateTime  @default(now())
+  cleared_at          DateTime?
+
+  student          user      @relation("StudentBacklogs", fields: [student_id], references: [user_id])
+  subject          Subject   @relation(fields: [subject_id], references: [subject_id])
+  failed_semester  semester  @relation("FailedSemester", fields: [failed_semester_id], references: [semester_id])
+  cleared_semester semester? @relation("ClearedSemester", fields: [cleared_semester_id], references: [semester_id])
+
+  @@unique([student_id, subject_id, failed_semester_id])
+  @@index([student_id])
+  @@index([subject_id])
+  @@index([status])
+  @@map("backlogs")
+}
+
+model areas {
+  id             Int          @id @default(autoincrement())
+  city_id        Int
+  name           String       @db.VarChar(100)
+  created_at     DateTime     @default(now()) @db.Timestamp(0)
+  updated_at     DateTime?    @default(now()) @db.Timestamp(0)
+  cities         cities       @relation(fields: [city_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "areas_ibfk_1")
+  universities   university[]
+  colleges       college[]
+  contactUsers   user[]       @relation("ContactAddress")
+  permanentUsers user[]       @relation("PermanentAddress")
+
+  @@index([city_id], map: "city_id")
+}
+
+model cities {
+  id          Int       @id @default(autoincrement())
+  district_id Int
+  name        String    @db.VarChar(100)
+  created_at  DateTime  @default(now()) @db.Timestamp(0)
+  updated_at  DateTime? @default(now()) @db.Timestamp(0)
+  areas       areas[]
+  districts   districts @relation(fields: [district_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "cities_ibfk_1")
+
+  @@index([district_id], map: "district_id")
+}
+
+model districts {
+  id          Int       @id @default(autoincrement())
+  province_id Int
+  name        String    @db.VarChar(100)
+  postal_code String?   @db.VarChar(20)
+  created_at  DateTime  @default(now()) @db.Timestamp(0)
+  updated_at  DateTime? @default(now()) @db.Timestamp(0)
+  cities      cities[]
+  provinces   provinces @relation(fields: [province_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "districts_ibfk_1")
+
+  @@index([province_id], map: "province_id")
+}
+
+model provinces {
+  id         Int         @id @default(autoincrement())
+  name       String      @db.VarChar(100)
+  code       String?     @db.VarChar(10)
+  created_at DateTime    @default(now()) @db.Timestamp(0)
+  updated_at DateTime?   @default(now()) @db.Timestamp(0)
+  districts  districts[]
+}
+
+model university {
+  university_id    Int            @id @default(autoincrement())
+  university_code  String         @unique @db.VarChar(20)
+  university_name  String         @db.VarChar(150)
+  description      String?        @db.Text
+  established_year Int?
+  university_type  UniversityType @default(PUBLIC)
+  address          Int?
+  website          String?        @db.VarChar(255)
+  contact_email    String?        @db.VarChar(100)
+  contact_phone    String?        @db.VarChar(20)
+  logo_url         String?        @db.Text
+  is_active        Boolean        @default(true)
+  created_at       DateTime       @default(now())
+  updated_at       DateTime       @updatedAt
+
+  // Relations
+  areas    areas?    @relation(fields: [address], references: [id], map: "universities_area_id_fkey")
+  colleges college[]
+
+  @@index([university_type])
+  @@index([is_active])
+  @@map("universities")
+}
+
+model college {
+  college_id       Int         @id @default(autoincrement())
+  college_code     String      @unique @db.VarChar(20)
+  college_name     String      @db.VarChar(150)
+  description      String?     @db.Text
+  university_id    Int?
+  established_year Int?
+  college_type     CollegeType @default(AFFILIATED)
+  address          Int?
+  website          String?     @db.VarChar(255)
+  contact_email    String?     @db.VarChar(100)
+  contact_phone    String?     @db.VarChar(20)
+  logo_url         String?     @db.Text
+  is_active        Boolean     @default(true)
+  created_at       DateTime    @default(now())
+  updated_at       DateTime    @updatedAt
+
+  university university? @relation(fields: [university_id], references: [university_id], map: "College_university_id_fkey")
+  courses    course[]
+  users      user[]      @relation("CollegeUsers")
+  areas      areas?      @relation(fields: [address], references: [id], map: "university_area_id_fkey")
+
+  @@index([university_id])
+  @@index([college_type])
+  @@index([is_active])
+  @@map("colleges")
+}
+
+model academic_record {
+  record_id           Int                @id @default(autoincrement())
+  student_id          Int
+  record_type         AcademicRecordType
+  qualification_name  String             @db.VarChar(100) // e.g., "Higher Secondary", "Bachelor of Engineering"
+  board_name          String?            @db.VarChar(100) // For 10th/12th boards like CBSE, ICSE
+  school_college_name String             @db.VarChar(150)
+  year_of_passing     Int
+  grade_type          GradeType          @default(PERCENTAGE)
+  marks_obtained      Decimal?           @db.Decimal(8, 2)
+  total_marks         Decimal?           @db.Decimal(8, 2)
+  percentage          Decimal?           @db.Decimal(5, 2)
+  cgpa                Decimal?           @db.Decimal(4, 2)
+  grade               String?            @db.VarChar(10) // A+, A, B+, etc.
+  subjects_stream     String?            @db.VarChar(100) // Science, Commerce, Arts, etc.
+  medium_of_study     String?            @db.VarChar(50)
+  remarks             String?            @db.Text
+  created_at          DateTime           @default(now())
+  updated_at          DateTime           @updatedAt
+  university_id       Int?
+  college_id          Int?
+
+  // Relations
+  student   user                @relation("StudentAcademicRecords", fields: [student_id], references: [user_id], onDelete: Cascade)
+  documents academic_document[]
+
+  @@index([student_id])
+  @@index([record_type])
+  @@index([year_of_passing])
+  @@index([university_id])
+  @@index([college_id])
+  @@map("academic_records")
+}
+
+model academic_document {
+  document_id        Int                  @id @default(autoincrement())
+  academic_record_id Int
+  document_type      AcademicDocumentType
+  document_name      String               @db.VarChar(150)
+  file_name          String               @db.VarChar(255)
+  file_url           String               @db.Text
+  file_size          Int? // in bytes
+  file_type          String               @db.VarChar(50) // pdf, jpg, png, etc.
+  is_original        Boolean              @default(false) // true for original documents
+  uploaded_by        Int
+  uploaded_at        DateTime             @default(now())
+  remarks            String?              @db.Text
+
+  // Relations
+  academic_record academic_record @relation(fields: [academic_record_id], references: [record_id], onDelete: Cascade)
+  uploader        user            @relation("AcademicDocumentUploader", fields: [uploaded_by], references: [user_id])
+
+  @@index([academic_record_id])
+  @@index([document_type])
+  @@index([uploaded_by])
+  @@map("academic_documents")
+}
+
+// ===== ENUMS =====
+enum Gender {
+  male
+  female
+  other
+}
+
+enum materialtype_type_name {
+  Notes
+  Assignment
+  Video
+  Presentation
+  Quiz
+  Other
+}
+
+enum UniversityType {
+  PUBLIC
+  PRIVATE
+  DEEMED
+  CENTRAL
+  STATE
+  AUTONOMOUS
+}
+
+enum CollegeType {
+  AFFILIATED
+  AUTONOMOUS
+  CONSTITUENT
+  GOVERNMENT
+  PRIVATE
+  AIDED
+  UNAIDED
+}
+
+enum AcademicRecordType {
+  PRIMARY // 10th Standard
+  SECONDARY // 12th Standard
+  DIPLOMA
+  UNDERGRADUATE // Bachelor's
+  POSTGRADUATE // Master's
+  DOCTORATE // PhD
+  CERTIFICATE
+  OTHER
+}
+
+enum GradeType {
+  MARKS
+  PERCENTAGE
+  CGPA
+  GPA
+  GRADE
+  DIVISION
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  UNDER_REVIEW
+}
+
+enum AcademicDocumentType {
+  MARKSHEET // Mark sheet/Grade card
+  CERTIFICATE // Passing certificate
+  PROVISIONAL // Provisional certificate
+  MIGRATION // Migration certificate
+  CHARACTER // Character certificate
+  TRANSCRIPT // Official transcript
+  DEGREE // Degree certificate
+  DIPLOMA_CERT // Diploma certificate
+  OTHER
+}
