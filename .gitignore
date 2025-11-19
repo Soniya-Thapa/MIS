@@ -1,0 +1,40 @@
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build output (if you have a build folder)
+dist/
+build/
+
+# Uploaded files (local storage if any)
+uploads/
+
+# Prisma generated client (optional)
+prisma/client/
+
+# Cloudinary temp uploads (if storing locally before upload)
+*.tmp
+*.temp
+
+# IDE/editor files
+.vscode/
+.idea/
+
+# Optional: lockfiles (if your team wants them ignored)
+package-lock.json
+yarn.lock
+
+dbcommand.txt
